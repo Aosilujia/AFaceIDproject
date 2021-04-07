@@ -138,6 +138,7 @@ class MainActivity : AppCompatActivity() {
                             mediaPlayer!!.seekTo(0)
                             //show  message
                             mediaPlayer!!.start()
+                            mediaPlayer!!.isLooping = true;
                             //print out  current device used
                             /*var deviceInfo: AudioDeviceInfo?=mediaPlayer.getSelectedTrack()
                             var deviceinfoString= "Now using device:"+deviceInfo.getProductName()+",samplerate:"+deviceInfo.getSampleRates()[0]
@@ -358,7 +359,7 @@ class MainActivity : AppCompatActivity() {
         val musicVolume = mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         previousMusicVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
         Log.v(logTag, "max volume " + musicVolume + " currentMusic Volume " + previousMusicVolume)
-        mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 10, 0)
+        mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (musicVolume*0.7).toInt(), 0)
     }
 
     var previousMusicVolume: Int? = null

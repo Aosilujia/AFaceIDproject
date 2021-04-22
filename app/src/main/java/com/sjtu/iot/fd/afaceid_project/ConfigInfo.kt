@@ -20,6 +20,8 @@ class ConfigInfo {
     }
 
     var prefixKey: String? = "prefix"
+    var audioFile: String = "sound"
+    var audioKey: String = "audioSelection"
     var prefix: String? = "distance"
     var mediumKey: String? = "medium"
     var medium: String? = "name"

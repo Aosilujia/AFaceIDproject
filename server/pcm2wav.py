@@ -4,6 +4,7 @@
 import os
 import queue
 import wave
+import numpy as np
 
 if __name__ == '__main__':
     queue = queue.Queue()
@@ -21,5 +22,8 @@ if __name__ == '__main__':
                 with open(nextpath, 'rb') as pcmfile:
                     pcmdata = pcmfile.read()
                 with wave.open(wavfilepath, 'wb') as wavfile:
-                    wavfile.setparams((1, 2, 48000, 0, 'NONE', 'NONE'))
+                    wave_out.setnchannels(1)
+                    wave_out.setsampwidth(4)
+                    wave_out.setframerate(48000)
+                    #wavfile.setparams((1, 4, 48000, 0, 'NONE', 'NONE'))
                     wavfile.writeframes(pcmdata)

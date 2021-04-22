@@ -41,7 +41,8 @@ class MainActivity : AppCompatActivity() {
     private val logTag: String = "afaceid_MainActivity"
     private var previousRemove: Long = SystemClock.elapsedRealtime()
 
-    private var audioSourceFile:String?="gsm44k"
+    private var audioSourceFile:String?=configInfo.audioFile
+    private var audioSelection:Int=0
 
     private val MY_WRITE_EXTERNAL_STORAGE=1;
     private val MY_READ_EXTERNAL_STORAGE=2;
@@ -52,12 +53,6 @@ class MainActivity : AppCompatActivity() {
     var RES_PREFIX:String = ""
 
     var debuginfo_micinfo:String=""
-
-    /*
-    enum class MyPermissions{
-        MY_READ_EXTERNAL_STORAGE,MY_WRITE_EXTERNAL_STORAGE
-    }*/
-
 
     companion object {
         var staticIOService: IOService? = null
@@ -70,7 +65,7 @@ class MainActivity : AppCompatActivity() {
         //设置文件存储根目录
         RES_PREFIX= "android.resource://$packageName/"
         //初始化界面资源
-        val audioSpinner:Spinner=findViewById(R.id.audiosource_spinner)
+        initSpinner()
         //数据采集根目录
         this.dataRootDir= Environment.getExternalStorageDirectory().absolutePath + "/AFaceIDproject"+ "/collectdata/"
 
@@ -141,10 +136,9 @@ class MainActivity : AppCompatActivity() {
                             mediaPlayer!!.isLooping = true;
                             //print out  current device used
                             /*var deviceInfo: AudioDeviceInfo?=mediaPlayer.getSelectedTrack()
-                            var deviceinfoString= "Now using device:"+deviceInfo.getProductName()+",samplerate:"+deviceInfo.getSampleRates()[0]
-                            Log.v(logTag,"")*/
+                            var deviceinfoString= "Now using device:"+deviceInfo.getProductName()+",samplerate:"+deviceInfo.getSampleRates()[0]*/
                         }.start()
-                        Log.v(logTag, Date().time.toString())
+                        //Log.v(logTag, Date().time.toString())
                         chronometer.base = SystemClock.elapsedRealtime()
                         chronometer.start()
                     }
@@ -198,6 +192,7 @@ class MainActivity : AppCompatActivity() {
             connect()
         }
         send_button.setOnClickListener{
+            updateTexts()
             NetworkTask().execute()
         }
         debug_info_button.setOnClickListener{
@@ -208,20 +203,24 @@ class MainActivity : AppCompatActivity() {
         }
 
 
+
+    }
+
+    private fun initSpinner(){
         /**spinner 下拉列表设置
          * 对应切换音源的功能*/
-        val list:MutableList<String>
-        list=listRaw()
+        var audioSpinner:Spinner=findViewById(R.id.audiosource_spinner)
+        val list:MutableList<String> = listRaw()
         list.add(getString(R.string.more_files))
         val arrayAdapter:ArrayAdapter<String>?=ArrayAdapter(this,android.R.layout.simple_spinner_item,list)
         audioSpinner.adapter=arrayAdapter
-        audioSpinner.setSelection(arrayAdapter!!.getPosition(audioSourceFile))
+        //audioSpinner.setSelection(arrayAdapter!!.getPosition(audioSourceFile))
         audioSpinner.onItemSelectedListener= object:AdapterView.OnItemSelectedListener{
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (position==arrayAdapter.count-1){
+                if (position==arrayAdapter!!.count-1){
                     //选择最后一个选项，表示从手机读取音频
                     performFileSearch("audio/*",this@MainActivity)
-                    //see the result processing in on activityresult
+                    //结果处理在 activityresult
                 }
                 else{
                     //选择app自带的音频
@@ -243,10 +242,12 @@ class MainActivity : AppCompatActivity() {
                         changeAudioSource(sourceurl)
                     }
                 }
+                audioSelection=audioSpinner.selectedItemPosition
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
     }
+
 
 
     //封装的请求权限函数，permissionString为请求类型，requestCode为请求返回结果的代码，通过result函数分别处理不同的返回结果
@@ -372,6 +373,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadTexts() {
         val sharedPref = this.getSharedPreferences(resources.getString(R.string.preference_file_key),Context.MODE_PRIVATE)
+        this.audioSelection = sharedPref.getInt(this.configInfo.audioKey,this.audioSelection)
         this.configInfo.port = sharedPref.getInt(this.configInfo.portKey, this.configInfo.port)
         this.configInfo.ipAddress = sharedPref.getString(this.configInfo.ipAddressKey, this.configInfo.ipAddress)!!
         this.configInfo.count = sharedPref.getInt(this.configInfo.countKey, this.configInfo.count)
@@ -388,6 +390,8 @@ class MainActivity : AppCompatActivity() {
         deleteAll(ip_address_edit_text.text)
         deleteAll(description_edit_text.text)
         deleteAll(ip_port_edit_text.text)
+        var audioSpinner:Spinner=findViewById(R.id.audiosource_spinner)
+        audioSpinner.setSelection(this.audioSelection)
         filename_prefix_edit_text.text.insert(0, this.configInfo.prefix)
         filename_medium_edit_text.text.insert(0, this.configInfo.medium)
         filename_count_edit_text.text.insert(0, this.configInfo.count.toString())
@@ -412,6 +416,7 @@ class MainActivity : AppCompatActivity() {
     fun saveTexts() {
         val sharedPref = this.getSharedPreferences(resources.getString(R.string.preference_file_key),Context.MODE_PRIVATE)
         val editor = sharedPref.edit()
+        editor.putInt(this.configInfo.audioKey,this.audioSelection)
         editor.putString(this.configInfo.prefixKey, this.configInfo.prefix)
         editor.putString(this.configInfo.mediumKey, this.configInfo.medium)
         editor.putInt(this.configInfo.countKey, this.configInfo.count)
@@ -550,12 +555,14 @@ class MainActivity : AppCompatActivity() {
         val buffer: ByteBuffer = ByteBuffer.allocateDirect(ConfigInfo.bufferSize / 3)
         val byteArray: ByteArray = ByteArray(ConfigInfo.bufferSize / 3)
         var len: Int = 0
+        var writeLen=0
 
         sendMessage("start record")
-        var previousTime = SystemClock.elapsedRealtimeNanos()
+        var startTime = SystemClock.elapsedRealtimeNanos()
         try {
             while (audioRecord!!.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
             }
+            buffer.clear()
             do {
                 len = audioRecord!!.read(buffer, buffer.capacity())
                 buffer.rewind()
@@ -563,14 +570,34 @@ class MainActivity : AppCompatActivity() {
                     buffer.get(byteArray, 0, len)
                     buffer.clear()
                     outputStream.write(byteArray, 0, len)
+                    writeLen+=len
                 }
-            } while (len > 0 || audioRecord!!.recordingState == AudioRecord.RECORDSTATE_RECORDING)
+            } while (audioRecord!!.recordingState == AudioRecord.RECORDSTATE_RECORDING) // 之前是len>0 ||录音中，有可能没写完下一个录音就开始了，导致前一个文件多记录
+            //停止录音后记录中间值，防止线程冲突。这里预计的音频并不会非常准确，后面特征提取可能注意一下
+            //容易冲突的共享变量全都要额外一份
+            var currentLen=writeLen
+            var nanoPerFrame:Double=(1.0/ConfigInfo.sampleRateInHz)/1e-9
+            var expectedTime=(SystemClock.elapsedRealtimeNanos()-startTime)/nanoPerFrame
+            //Log.v(logTag,"writedata,expected time:"+expectedTime)
+            val buffer2: ByteBuffer = ByteBuffer.allocateDirect(ConfigInfo.bufferSize / 3)
+            val byteArray2: ByteArray = ByteArray(ConfigInfo.bufferSize / 3)
+            var len2=0
+            do{
+                len2 = audioRecord!!.read(buffer2, buffer2.capacity())
+                buffer2.rewind()
+                if (len2 > 0) {
+                    buffer2.get(byteArray2, 0, len2)
+                    buffer2.clear()
+                    outputStream.write(byteArray2, 0, len2)
+                    currentLen+=len2
+                }
+            } while (len2>0 && currentLen<expectedTime)
         } finally {
             outputStream.flush()
             outputStream.close()
+            //show message
+            sendMessage("stop record")
         }
-        //show message
-        sendMessage("stop record")
     }
 
 

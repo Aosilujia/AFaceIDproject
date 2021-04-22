@@ -4,6 +4,9 @@
  */
 package com.sjtu.iot.fd.afaceid_project
 
+import java.io.FileInputStream
+import java.io.InputStream
+
 
 class FMDWWaveGenerator : WaveGenerator {
     companion object {
@@ -36,5 +39,13 @@ class FMDWWaveGenerator : WaveGenerator {
             buffer[i] = getValue()
         }
         return buffer
+    }
+
+    override fun bufferSize(): Int {
+        TODO("Not yet implemented")
+    }
+
+    override fun fileStream(): InputStream {
+        TODO("Not yet implemented")
     }
 }

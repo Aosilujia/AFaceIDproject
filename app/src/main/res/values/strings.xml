@@ -17,4 +17,8 @@
     <string name="record_device_description">record device info:</string>
     <string name="debug_area_tile">Debug Infos</string>
     <string name="debug_info_button">debug info</string>
+    <string name="change_speaker">Change Speaker</string>
+    <string name="top_speaker">top</string>
+    <string name="bottom_speaker">bottom</string>
+
 </resources>

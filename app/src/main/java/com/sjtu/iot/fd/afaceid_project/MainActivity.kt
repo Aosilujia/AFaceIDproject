@@ -13,21 +13,20 @@ import android.content.pm.PackageManager
 import android.media.*
 import android.net.Uri
 import android.os.*
+import android.support.v4.app.ActivityCompat
+import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
 import android.text.Editable
 import android.util.Log
-
-import kotlinx.android.synthetic.main.activity_main.*
-import kotlinx.android.synthetic.main.content_main.*
-import java.lang.Exception
-import java.nio.ByteBuffer
-import java.util.*
-import android.support.v4.app.ActivityCompat
-import android.support.v4.content.ContextCompat
 import android.view.View
 import android.widget.*
+import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.android.synthetic.main.content_main.*
 import java.io.*
 import java.net.Socket
+import java.nio.ByteBuffer
+import java.util.*
+
 
 private const val READ_REQUEST_CODE: Int = 42
 const val DEBUG_MESSAGE1 = "com.sjtu.iot.fd.afaceid_project.debug1"
@@ -44,15 +43,14 @@ class MainActivity : AppCompatActivity() {
     private var audioSourceFile:String?=configInfo.audioFile
     private var audioSelection:Int=0
 
-    private val MY_WRITE_EXTERNAL_STORAGE=1;
-    private val MY_READ_EXTERNAL_STORAGE=2;
-    private val MY_INTERNET=4;
-    private val MY_RECORD_AUDIO=3;
-
+    private val MY_WRITE_EXTERNAL_STORAGE=1
+    private val MY_READ_EXTERNAL_STORAGE=2
+    private val MY_INTERNET=4
+    private val MY_RECORD_AUDIO=3
 
     var RES_PREFIX:String = ""
 
-    var debuginfo_micinfo:String=""
+    private var debugInfo:String=""
 
     companion object {
         var staticIOService: IOService? = null
@@ -64,8 +62,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         //设置文件存储根目录
         RES_PREFIX= "android.resource://$packageName/"
-        //初始化界面资源
-        initSpinner()
+
         //数据采集根目录
         this.dataRootDir= Environment.getExternalStorageDirectory().absolutePath + "/AFaceIDproject"+ "/collectdata/"
 
@@ -76,8 +73,9 @@ class MainActivity : AppCompatActivity() {
         loadTexts()
         showTexts()
 
-
-        //请求文件权限
+        /**
+         * 请求权限部分
+         * */
         requestPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE,MY_WRITE_EXTERNAL_STORAGE)
         requestPermission(Manifest.permission.READ_EXTERNAL_STORAGE,MY_READ_EXTERNAL_STORAGE)
         requestPermission(Manifest.permission.INTERNET,MY_INTERNET)
@@ -87,7 +85,12 @@ class MainActivity : AppCompatActivity() {
             setupVideoView()
         }
 
-        /** 界面设置部分
+        /**界面设置部分
+         * 初始化界面组件变量，填充内容
+         * */
+        initSpinner()
+
+        /**
          * 设置组件的基本外观，以及一些不涉及到主要逻辑的美化*/
 
         /** 按钮反馈函数设置
@@ -120,6 +123,7 @@ class MainActivity : AppCompatActivity() {
 //                    )
                     if (!mediaPlayer!!.isPlaying) {
                         updateTexts()
+
                         val filepath =
                             dataRootDir + "/" + configInfo.prefix + "/" + configInfo.medium + "/" + configInfo.count + ".pcm"
                         ioService!!.mkdir(configInfo.prefix + "/" + configInfo.medium + "/")
@@ -133,7 +137,7 @@ class MainActivity : AppCompatActivity() {
                             mediaPlayer!!.seekTo(0)
                             //show  message
                             mediaPlayer!!.start()
-                            mediaPlayer!!.isLooping = true;
+                            mediaPlayer!!.isLooping = true
                             //print out  current device used
                             /*var deviceInfo: AudioDeviceInfo?=mediaPlayer.getSelectedTrack()
                             var deviceinfoString= "Now using device:"+deviceInfo.getProductName()+",samplerate:"+deviceInfo.getSampleRates()[0]*/
@@ -197,7 +201,7 @@ class MainActivity : AppCompatActivity() {
         }
         debug_info_button.setOnClickListener{
             val intent=Intent(this,DebugInfoActivity::class.java).apply {
-                putExtra(DEBUG_MESSAGE1,debuginfo_micinfo)
+                putExtra(DEBUG_MESSAGE1,debugInfo)
             }
             startActivity(intent)
         }
@@ -208,8 +212,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun initSpinner(){
         /**spinner 下拉列表设置
-         * 对应切换音源的功能*/
-        var audioSpinner:Spinner=findViewById(R.id.audiosource_spinner)
+         * 对应切换音源下拉表*/
+        val audioSpinner:Spinner=findViewById(R.id.audiosource_spinner)
         val list:MutableList<String> = listRaw()
         list.add(getString(R.string.more_files))
         val arrayAdapter:ArrayAdapter<String>?=ArrayAdapter(this,android.R.layout.simple_spinner_item,list)
@@ -246,6 +250,38 @@ class MainActivity : AppCompatActivity() {
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
+        /**
+        * 对应切换扬声器下拉表
+        * */
+        val changeSpeakerSpinner:Spinner=findViewById(R.id.change_speaker_spinner)
+        val speakerList:MutableList<String> = ArrayList()
+        speakerList.add(getString(R.string.bottom_speaker))
+        speakerList.add(getString(R.string.top_speaker))
+        val speakerArrayAdapter:ArrayAdapter<String> = ArrayAdapter(this,android.R.layout.simple_spinner_item,speakerList)
+        changeSpeakerSpinner.adapter=speakerArrayAdapter
+        changeSpeakerSpinner.onItemSelectedListener=object:AdapterView.OnItemSelectedListener{
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val audioManager =
+                    applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                val selection = speakerArrayAdapter.getItem(position)
+                if (selection == getString(R.string.top_speaker)){
+                        audioManager.isSpeakerphoneOn=false
+                        audioManager.mode=AudioManager.MODE_IN_COMMUNICATION
+                        val musicVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, musicVolume, 0)
+                }
+                else if (selection == getString(R.string.bottom_speaker)){
+
+                    audioManager.mode=AudioManager.MODE_NORMAL
+                    audioManager.isSpeakerphoneOn = true
+                    val musicVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (musicVolume*0.7).toInt(), 0)
+                }
+
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
     }
 
 
@@ -328,11 +364,8 @@ class MainActivity : AppCompatActivity() {
             val pw = PrintWriter(socket.getOutputStream())
             val br = BufferedReader(InputStreamReader(socket.getInputStream()))
             while (true) {
-                val content = br.readLine()
-                if (content == null) {
-                    break
-                }
-                if (content.equals("info")) {
+                val content = br.readLine() ?: break
+                if (content == "info") {
                     pw.println("prefix = ${configInfo.prefix} media = ${configInfo.medium} count= ${configInfo.count}")
                 }
                 sendMessage(content, 1)
@@ -359,7 +392,7 @@ class MainActivity : AppCompatActivity() {
         val mAudioManager = applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val musicVolume = mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         previousMusicVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-        Log.v(logTag, "max volume " + musicVolume + " currentMusic Volume " + previousMusicVolume)
+        Log.v(logTag, "max volume $musicVolume currentMusic Volume $previousMusicVolume")
         mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (musicVolume*0.7).toInt(), 0)
     }
 
@@ -383,14 +416,14 @@ class MainActivity : AppCompatActivity() {
                 ioService!!.getContent(configInfo.prefix + "/" + configInfo.medium + "/description.txt")
     }
 
-    fun showTexts() {
+    private fun showTexts() {
         deleteAll(filename_prefix_edit_text.text)
         deleteAll(filename_medium_edit_text.text)
         deleteAll(filename_count_edit_text.text)
         deleteAll(ip_address_edit_text.text)
         deleteAll(description_edit_text.text)
         deleteAll(ip_port_edit_text.text)
-        var audioSpinner:Spinner=findViewById(R.id.audiosource_spinner)
+        val audioSpinner:Spinner=findViewById(R.id.audiosource_spinner)
         audioSpinner.setSelection(this.audioSelection)
         filename_prefix_edit_text.text.insert(0, this.configInfo.prefix)
         filename_medium_edit_text.text.insert(0, this.configInfo.medium)
@@ -400,11 +433,11 @@ class MainActivity : AppCompatActivity() {
         ip_port_edit_text.text.insert(0, this.configInfo.port.toString())
     }
 
-    fun deleteAll(text: Editable) {
+    private fun deleteAll(text: Editable) {
         text.delete(0, text.length)
     }
 
-    fun updateTexts() {
+    private fun updateTexts() {
         this.configInfo.prefix = filename_prefix_edit_text.text.toString()
         this.configInfo.medium = filename_medium_edit_text.text.toString()
         this.configInfo.count = filename_count_edit_text.text.toString().toInt()
@@ -413,7 +446,7 @@ class MainActivity : AppCompatActivity() {
         this.configInfo.port = ip_port_edit_text.text.toString().toInt()
     }
 
-    fun saveTexts() {
+    private fun saveTexts() {
         val sharedPref = this.getSharedPreferences(resources.getString(R.string.preference_file_key),Context.MODE_PRIVATE)
         val editor = sharedPref.edit()
         editor.putInt(this.configInfo.audioKey,this.audioSelection)
@@ -450,17 +483,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     //初始化audiorecord
-    fun setupVideoView() {
+    private fun setupVideoView() {
 //        video_view.setVideoURI())
         //根据手机是否支持，设置录音未经处理的音源
         val audioManager=getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (audioManager.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED)!=null){
             ConfigInfo.audioSource=MediaRecorder.AudioSource.UNPROCESSED
-            debuginfo_micinfo+="audio source: unprocessed"
+            debugInfo+="audio source: unprocessed\n"
         }
         else{
             ConfigInfo.audioSource=MediaRecorder.AudioSource.VOICE_RECOGNITION
-            debuginfo_micinfo+="audio source: voice_recognition"
+            debugInfo+="audio source: voice_recognition\n"
         }
 
         //初始化audiorecord类
@@ -469,7 +502,7 @@ class MainActivity : AppCompatActivity() {
             ConfigInfo.sampleRateInHz,
             ConfigInfo.channelConfig,
             ConfigInfo.audioFormat,
-            ConfigInfo.bufferSize!!
+            ConfigInfo.bufferSize
         )
 
         //设置音源文件
@@ -479,24 +512,24 @@ class MainActivity : AppCompatActivity() {
 
         //sdk28以上可以查麦克风信息
         if (Build.VERSION.SDK_INT>=28){
-            val activemics:List<MicrophoneInfo>?=audioRecord!!.activeMicrophones
-            var micinfo:String=""
-            for (activemic in activemics.orEmpty()){
-                val micid=activemic.id
-                val micchannels=activemic.channelMapping
-                val micfrequency=activemic.frequencyResponse
-                micinfo+="microphone id=$micid\n"+
+            val activeMics:List<MicrophoneInfo>?=audioRecord!!.activeMicrophones
+            var micInfo =""
+            for (activeMic in activeMics.orEmpty()){
+                val micId=activeMic.id
+                val micChannels=activeMic.channelMapping
+                val micFrequency=activeMic.frequencyResponse
+                micInfo+="microphone id=$micId\n"+
                         "-channels:\n"
-                for (channel in micchannels){
-                    micinfo+="(${channel.first},${channel.first});"
+                for (channel in micChannels){
+                    micInfo+="(${channel.first},${channel.first});"
                 }
-                micinfo+="\n-frequency response:\n"
-                for (frequency in micfrequency) {
-                    micinfo += "(${frequency.first},${frequency.second});"
+                micInfo+="\n-frequency response:\n"
+                for (frequency in micFrequency) {
+                    micInfo += "(${frequency.first},${frequency.second});"
                 }
-                micinfo+="\n"
+                micInfo+="\n"
             }
-            debuginfo_micinfo+=micinfo
+            debugInfo+=micInfo
         }
 
         //进度条
@@ -514,7 +547,7 @@ class MainActivity : AppCompatActivity() {
     fun changeAudioSource(fileuri:Uri){
         if (mediaPlayer!!.isPlaying){
             //cannot change audiosource when playing
-            Toast.makeText(this@MainActivity, "Please stop playing first", Toast.LENGTH_SHORT)
+            Toast.makeText(this@MainActivity, "Please stop playing first", Toast.LENGTH_SHORT).show()
         }
         else{
             mediaPlayer!!.reset()
@@ -532,9 +565,9 @@ class MainActivity : AppCompatActivity() {
         override fun handleMessage(msg: Message?) {
             super.handleMessage(msg)
             if (msg?.what == 0) {
-                Toast.makeText(this@MainActivity, msg?.obj.toString(), Toast.LENGTH_LONG).show()
+                Toast.makeText(this@MainActivity, msg.obj.toString(), Toast.LENGTH_LONG).show()
             } else if (msg?.what == 1) {
-                handleOperation(msg?.obj.toString())
+                handleOperation(msg.obj.toString())
             }
         }
     }
@@ -549,18 +582,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun writeData(filepath: String) {
-        val file: File = File(filepath)
+    private fun writeData(filepath: String) {
+        val file= File(filepath)
         val outputStream: OutputStream = file.outputStream()
         val buffer: ByteBuffer = ByteBuffer.allocateDirect(ConfigInfo.bufferSize / 3)
-        val byteArray: ByteArray = ByteArray(ConfigInfo.bufferSize / 3)
-        var len: Int = 0
+        val byteArray = ByteArray(ConfigInfo.bufferSize / 3)
+        var len: Int
         var writeLen=0
 
         sendMessage("start record")
-        var startTime = SystemClock.elapsedRealtimeNanos()
+        val startTime = SystemClock.elapsedRealtimeNanos()
         try {
             while (audioRecord!!.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                continue//可读性continue
             }
             buffer.clear()
             do {
@@ -573,15 +607,15 @@ class MainActivity : AppCompatActivity() {
                     writeLen+=len
                 }
             } while (audioRecord!!.recordingState == AudioRecord.RECORDSTATE_RECORDING) // 之前是len>0 ||录音中，有可能没写完下一个录音就开始了，导致前一个文件多记录
-            //停止录音后记录中间值，防止线程冲突。这里预计的音频并不会非常准确，后面特征提取可能注意一下
+            //停止录音后记录中间值，防止线程冲突。这里预计的音频长度并不会非常准确，后面特征提取可能注意一下
             //容易冲突的共享变量全都要额外一份
             var currentLen=writeLen
-            var nanoPerFrame:Double=(1.0/ConfigInfo.sampleRateInHz)/1e-9
-            var expectedTime=(SystemClock.elapsedRealtimeNanos()-startTime)/nanoPerFrame
-            //Log.v(logTag,"writedata,expected time:"+expectedTime)
+            val nanoPerFrame:Double=(1.0/ConfigInfo.sampleRateInHz)/1e-9
+            val expectedTime=(SystemClock.elapsedRealtimeNanos()-startTime)/nanoPerFrame
+            //Log.v(logTag,"write data,expected time:"+expectedTime)
             val buffer2: ByteBuffer = ByteBuffer.allocateDirect(ConfigInfo.bufferSize / 3)
-            val byteArray2: ByteArray = ByteArray(ConfigInfo.bufferSize / 3)
-            var len2=0
+            val byteArray2 = ByteArray(ConfigInfo.bufferSize / 3)
+            var len2 : Int
             do{
                 len2 = audioRecord!!.read(buffer2, buffer2.capacity())
                 buffer2.rewind()
@@ -601,12 +635,12 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    /*helper functions to sendmessage*/
-    fun sendMessage(str: String) {
+    /*helper functions to send message*/
+    private fun sendMessage(str: String) {
         Message.obtain(handler, 0, str).sendToTarget()
     }
 
-    fun sendMessage(str: String, what: Int) {
+    private fun sendMessage(str: String, what: Int) {
         Message.obtain(handler, what, str).sendToTarget()
     }
 }

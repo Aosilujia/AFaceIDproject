@@ -4,31 +4,26 @@
  */
 package com.sjtu.iot.fd.afaceid_project
 
-import android.util.Log
-import java.io.ByteArrayOutputStream
+
 import java.io.File
-import java.io.FileReader
 import java.io.PrintWriter
 import java.net.Socket
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
 
 class IOService(rootDir: String) {
-    val rootDir: String = rootDir
+    private val rootDir: String = rootDir
 
     init {
-        var rootDirFile = File(rootDir)
+        val rootDirFile = File(rootDir)
         if (!rootDirFile.exists()) {
             var temp=rootDirFile.mkdirs()
         }
     }
 
     fun createDir(dir: String) {
-        val dirPath = rootDir + "/" + dir
+        val dirPath = "$rootDir/$dir"
         val file = File(dirPath)
         if (!file.exists()) {
             file.mkdirs()
@@ -41,12 +36,12 @@ class IOService(rootDir: String) {
     }
 
     fun allFiles(): Array<String> {
-        var dirFile = File(rootDir)
+        val dirFile = File(rootDir)
         return dirFile.list()
     }
 
     private fun deleteDir(dir: File): Boolean {
-        if (dir.isDirectory()) {
+        if (dir.isDirectory) {
             val children = dir.list()
             for (child in children) {
                 val success = deleteDir(File(dir, child))
@@ -61,7 +56,7 @@ class IOService(rootDir: String) {
     fun send(ipAddress: String, port: Int) {
 
 //        var byteOutputStream = ByteArrayOutputStream()
-        var socket = Socket(ipAddress, port)
+        val socket = Socket(ipAddress, port)
         ZipUtils.toZip(rootDir, socket.getOutputStream(), true)
 //        var byteArray = byteOutputStream.toByteArray()
 //        var socket = Socket(ipAddress, port)
@@ -70,7 +65,7 @@ class IOService(rootDir: String) {
     }
 
     fun mkdir(dirName: String) {
-        var file = File(rootDir + '/' + dirName)
+        val file = File("$rootDir/$dirName")
         System.out.println(file)
         if (!file.exists()) {
             file.mkdirs()
@@ -78,7 +73,7 @@ class IOService(rootDir: String) {
     }
 
     fun write(filepath: String, content: String) {
-        var filepath = rootDir + "/" + filepath
+        val filepath = "$rootDir/$filepath"
         val file = File(filepath).parentFile
         if (!file.exists()) {
             file.mkdirs()
@@ -123,7 +118,7 @@ class IOService(rootDir: String) {
     }
 
     fun getContent(filepath: String): String {
-        val filepath = rootDir + "/" + filepath
+        val filepath = "$rootDir/$filepath"
         val file = File(filepath)
         if (file.exists() && file.isFile()) {
             return file.readText()
